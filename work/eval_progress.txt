@@ -1,0 +1,26 @@
+9.24
+    DocVQA 
+        Using val part, while test part has no answer.
+    ChartQA
+        Accuracy: 0.1096
+        Time: 20:41
+        MaxMem: 44761MiB
+        Batch Size: 28
+    Breakfast
+        # Multi-orient video and frame-segemanted annotations, need further process.
+        # Some texts like put_egg2plate and put_toppingOnTop are ont formular.
+        1-30 SIL 
+        30-150 take_bowl 
+        150-428 pour_cereals 
+        428-575 pour_milk 
+        575-705 stir_cereals 
+        705-836 SIL 
+    Clotho
+        Bleu_1: 0.480
+        Bleu_2: 0.270
+        Bleu_3: 0.164
+        Bleu_4: 0.101
+        METEOR: 0.140
+        ROUGE_L: 0.320
+        CIDEr: 0.239
+        SPICE: 0.089

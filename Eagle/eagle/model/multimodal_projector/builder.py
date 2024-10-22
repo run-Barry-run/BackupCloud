@@ -53,14 +53,33 @@ def build_vision_projector(config, delay_load=False, fpn_input_dim=[], **kwargs)
         return IdentityMap()
     
     # Modified from CuMo
-    elif projector_type == 'smoe_mlp':
-            return MLPMoE(num_experts=config.num_experts, num_selected=config.num_selected, mm_channels=(config.mm_hidden_size * len(config.scales)), channels=config.hidden_size, num_layers=config.num_layers, dropout=config.dropout)
+    moe_match = re.match(r'^smoe_mlp(\d+)x$', projector_type)
+    if moe_match:
+        moe_depth = int(moe_match.group(1))
+        return MLPMoE(
+            num_experts=config.num_experts, 
+            num_selected=config.num_selected, 
+            mm_channels=config.mm_hidden_size, 
+            channels=config.hidden_size, 
+            num_layers=config.num_layers,
+            depth=moe_depth, 
+            dropout=config.dropout
+        )
 
     raise ValueError(f'Unknown projector type: {projector_type}')
 
 # Copied from CuMo
 class MLPMoE(nn.Module):
-    def __init__(self, num_experts, num_selected, mm_channels, channels, num_layers, dropout=False):
+    def __init__(
+            self, 
+            num_experts, 
+            num_selected, 
+            mm_channels, 
+            channels, 
+            num_layers,
+            depth=1, 
+            dropout=False
+        ):
         super().__init__()
         self.num_experts = num_experts
         self.num_selected = num_selected
@@ -70,7 +89,11 @@ class MLPMoE(nn.Module):
         self.gate = nn.Linear(mm_channels, num_experts, bias=False)
         self.num_selected = num_selected
         self.num_experts = num_experts
-        self.experts = nn.ModuleList([nn.Sequential(nn.Linear(mm_channels, channels), nn.GELU(), nn.Linear(channels, channels)) for _ in range(num_experts)])
+        expert = [nn.Linear(mm_channels, channels)]
+        for _ in range(1, depth):
+            expert.append(nn.GELU())
+            expert.append(nn.Linear(channels, channels))
+        self.experts = nn.ModuleList([nn.Sequential(*expert) for _ in range(num_experts)])
 
     def forward(self, x_img):
         gate_logits = self.gate(x_img)

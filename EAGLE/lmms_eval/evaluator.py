@@ -528,8 +528,12 @@ def evaluate(
                         "prompt_hash": hash_string(requests[0].arguments[0]),
                         "target_hash": hash_string(str(target)),
                     }
-                    example.update(metrics)
-                    task_output.logged_samples.append(example)
+                    try:
+                        example.update(metrics)
+                        task_output.logged_samples.append(example)
+                    except Exception as e:
+                        print(e)
+                        continue
                 for metric, value in metrics.items():
                     task_output.sample_metrics[(metric, filter_key)].append(value)
                 pbar.update(1)

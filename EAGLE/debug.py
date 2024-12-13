@@ -17,14 +17,14 @@
 #     for k in f.keys():
 #         tensors[k] = f.get_tensor(k).shape # loads the full tensor given a key
 # print(tensors)
-import torch
-from eagle.model.multimodal_encoder.clip_encoder import LanguageBindVideo
-vision_tower = LanguageBindVideo.from_pretrained('./model/Vision_Encoder/LanguageBind/LanguageBind_Video_FT').vision_model
-input_ = torch.zeros((3, 8, 224, 224)).unsqueeze(0)
-print(input_.shape)
-with torch.no_grad():
-    output = vision_tower(pixel_values=input_)
-    print(output.shape)
+# import torch
+# from eagle.model.multimodal_encoder.clip_encoder import LanguageBindVideo
+# vision_tower = LanguageBindVideo.from_pretrained('./model/Vision_Encoder/LanguageBind/LanguageBind_Video_FT').vision_model
+# input_ = torch.zeros((3, 8, 224, 224)).unsqueeze(0)
+# print(input_.shape)
+# with torch.no_grad():
+#     output = vision_tower(pixel_values=input_)
+#     print(output.shape)
 
 # import datasets
 # self_dataset = datasets.load_dataset(
@@ -36,6 +36,7 @@ with torch.no_grad():
 # sampling_rate = audio['sampling_rate']
 # # print(len(array) / sampling_rate)
 # print(audio)
+# print(array)
 # print(len(array))
 # from eagle.model.multimodal_encoder.languagebind import LanguageBindAudioProcessor
 # from eagle.model.multimodal_encoder.languagebind import LanguageBindAudio
@@ -44,3 +45,17 @@ with torch.no_grad():
 # import torchaudio
 # # print(processor('/home1/hxl/disk/EAGLE/dataset/AudioSetCaps/example/_7Xe9vD3Hpg_4_10.mp3')['pixel_values'].shape)
 # print(torchaudio.load('/home1/hxl/disk/EAGLE/dataset/AudioSetCaps/example/_7Xe9vD3Hpg_4_10.mp3'))
+
+# import decord
+# import numpy as np
+# decord.bridge.set_bridge('torch')
+# decord_vr = decord.VideoReader('2e121.mp4')
+# duration = len(decord_vr)
+# frame_id_list = np.linspace(0, duration-1, 8, dtype=int)
+# video_data = decord_vr.get_batch(frame_id_list)
+# video_data = video_data.permute(3, 0, 1, 2)
+# print(video_data.shape)
+import torch
+a = torch.tensor([1, 1, 1])
+a = [a]
+print(torch.nn.utils.rnn.pad_sequence(a, batch_first=True))

@@ -54,6 +54,7 @@ def save_video(file_path):
     point_cloud = np.load(file_path)
     xyz = point_cloud[:, :3]
     rgb = point_cloud[:, 3:]
+
     
     # Create a new figure for each process
     plt.switch_backend('Agg')  # Use a non-GUI backend

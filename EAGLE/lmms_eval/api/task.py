@@ -1042,6 +1042,7 @@ class ConfigurableTask(Task):
             # `ds = load_datasets("lmms-lab/MMMU")`
             self.dataset = datasets.load_from_disk(path=self.DATASET_PATH, name=self.DATASET_NAME)
         else:
+            print(self.DATASET_PATH)
             self.dataset = datasets.load_dataset(
                 path=self.DATASET_PATH,
                 name=self.DATASET_NAME,

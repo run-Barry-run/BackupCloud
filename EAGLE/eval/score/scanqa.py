@@ -56,7 +56,7 @@ def evals_json(json_data):
         question_id=ins['question_id']
         question=ins['question']
         ref_answers=ins['answer']
-        pred=ins["prediction"][0]
+        pred=ins["prediction"]
 
         # top-1
         answer = pred
@@ -92,7 +92,12 @@ def eval_pycoco(json_data, use_spice=False):
     # pycocoeval
     gts = {ins['question_id']:[{'caption':ans} for ans in ins['answer']] for ins in json_data}
     # res = {qid:[{'caption':value['answer_top10'][0]}] for qid,value in preds.items()}
-    res = {ins['question_id']:[{'caption':pred} for pred in ins['prediction']] for ins in json_data}
+
+    # prediction is a list
+    # res = {ins['question_id']:[{'caption':pred} for pred in ins['prediction']] for ins in json_data}
+    # prediction is a string
+    res = {ins['question_id']:[{'caption':ins['prediction']}] for ins in json_data}
+
     gts  = tokenizer.tokenize(gts)
     res = tokenizer.tokenize(res)
     #print(gts,res)

@@ -193,8 +193,12 @@ def activitynetqa_process_results(doc, result):
         pred = result[0]
 
         # Assume get_eval returns a review and the model name, and parse_score parses this review
-        review, model_name = get_eval(question, answer, pred, 64)
-        scores = parse_score(review)
+        # review, model_name = get_eval(question, answer, pred, 64)
+        # scores = parse_score(review)
+        if answer in pred.lower():
+            scores = ["yes", 1]
+        else:
+            scores = ["no", 0]
     except Exception as e:
         eval_logger.error(f"Error for Question ID: {doc.get('question_id', 'Unknown')}: {e}")
         review = "Failed to Get a Proper Review."

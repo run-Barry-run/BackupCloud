@@ -1,5 +1,6 @@
 import torch
 from PIL import Image
+import numpy as np
 
 torch.backends.cuda.matmul.allow_tf32 = True
 
@@ -14,6 +15,8 @@ from lmms_eval.api.model import lmms
 from lmms_eval.api.registry import register_model
 from lmms_eval.utils import stop_sequences_criteria
 
+from eval.utils import replace_dir
+
 from accelerate import Accelerator, DistributedType, InitProcessGroupKwargs
 from accelerate.state import AcceleratorState
 from typing import List, Optional, Union, Tuple
@@ -23,13 +26,13 @@ warnings.filterwarnings("ignore")
 
 eval_logger = logging.getLogger("lmms-eval")
 
-try:
-    from eagle.model.builder import load_pretrained_model
-    from eagle.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
-    from eagle.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
-    from eagle.conversation import conv_templates, SeparatorStyle
-except ImportError:
-    eval_logger.error("Please add a symbolic link pointing to the eagle folder of repo ")
+# try:
+from eagle.model.builder import load_pretrained_model
+from eagle.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+from eagle.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
+from eagle.conversation import conv_templates, SeparatorStyle
+# except ImportError:
+#     eval_logger.error("Please add a symbolic link pointing to the eagle folder of repo ")
 
 from transformers.integrations.deepspeed import (
     is_deepspeed_zero3_enabled,
@@ -303,8 +306,16 @@ class Eagle(lmms):
         re_ords = utils.Collator([reg.args for reg in requests], _collate, grouping=True)
         chunks = re_ords.get_batched(n=self.batch_size, batch_fn=None)
         num_iters = len(requests) // self.batch_size if len(requests) % self.batch_size == 0 else len(requests) // self.batch_size + 1
-        pbar = tqdm(total=num_iters, disable=(self.rank != 0), desc="Model Responding")
+        task_flag = ''
         for chunk in chunks:
+            # print(chunk)
+            _, _, _, _, task_flag, _ = zip(*chunk)
+            break
+        pbar = tqdm(total=num_iters, disable=(self.rank != 0), desc="Model Responding")
+        context_list = []
+        doc_id_list = []
+        for chunk in chunks:
+            # print(chunk)
             contexts, all_gen_kwargs, doc_to_visual, doc_id, task, split = zip(*chunk)
             task = task[0]
             split = split[0]
@@ -334,7 +345,19 @@ class Eagle(lmms):
             try:
                 if visuals:
                     # print(len(visuals[0]['array']))
-                    image_tensor = process_images(visuals, self._image_processor, self._config)
+                    # BEGIN hxl, replace npy in cache
+                    # print(visuals)
+                    if isinstance(visuals[0], str):
+                        replace_visuals = replace_dir(visuals[0])
+                        if replace_visuals != '':
+                            image_tensor = torch.from_numpy(np.load(replace_visuals)).unsqueeze(0)
+                        else:
+                            print('ignore', visuals)
+                            continue
+                            image_tensor = process_images(visuals, self._image_processor, self._config)
+                    # END
+                    else:
+                        image_tensor = process_images(visuals, self._image_processor, self._config)
                     if type(image_tensor) is list:
                         image_tensor = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensor]
                     else:
@@ -429,10 +452,32 @@ class Eagle(lmms):
                 text_outputs = [""]
 
             res.extend(text_outputs)
+            context_list.extend(contexts)
+            doc_id_list.extend(doc_id)
             self.cache_hook.add_partial("generate_until", (context, gen_kwargs), text_outputs)
             pbar.update(1)
+            # print(res)
 
         res = re_ords.get_original(res)
 
         pbar.close()
+        # BEGIN hxl get result
+        save_list = []
+        for text, context, doc in zip(res, context_list, doc_id_list):
+            save_list.append({
+                "text_output": text,
+                "context": context,
+                "doc_id": doc
+            })
+        from datetime import datetime
+        import os
+        # 获取当前日期，格式化为字符串（例如：2023-10-05）
+        current_date = datetime.now().strftime("%Y%m%d")
+        output_dir = f'output/eval/{current_date}'
+        os.makedirs(output_dir, exist_ok=True)
+        with open(f'{output_dir}/{task_flag}.json', 'w') as json_file:
+            import json
+            json.dump(save_list, json_file)
+            print('result dumped')
+        # END hxl
         return res

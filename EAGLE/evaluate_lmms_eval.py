@@ -4,6 +4,9 @@ import importlib
 import json
 import os
 import sys
+# BEGIN hxl add for onellm
+sys.path.append('./OneLLM')
+# END
 import traceback
 import warnings
 from functools import partial

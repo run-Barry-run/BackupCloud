@@ -23,6 +23,11 @@ class CLIPVisionTower(nn.Module):
         else:
             self.cfg_only = CLIPVisionConfig.from_pretrained(self.vision_tower_name)
 
+        # BEGIN hxl
+        # Try for load pretrained
+        self.load_model()
+        # END hxl
+
     def load_model(self, device_map=None):
         if self.is_loaded:
             print('{} is already loaded, `load_model` called again, skipping.'.format(self.vision_tower_name))
@@ -30,7 +35,8 @@ class CLIPVisionTower(nn.Module):
 
         self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
         self.vision_tower = CLIPVisionModel.from_pretrained(self.vision_tower_name, device_map=device_map)
-        self.vision_tower.requires_grad_(False)
+        self.vision_tower.vision_model.encoder.gradient_checkpointing =True
+        # self.vision_tower.requires_grad_(False)
 
         self.is_loaded = True
 
@@ -44,7 +50,7 @@ class CLIPVisionTower(nn.Module):
             raise ValueError(f'Unexpected select feature: {self.select_feature}')
         return image_features
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def forward(self, images):
         if type(images) is list:
             image_features = []
@@ -117,21 +123,23 @@ class LanguageBindVideoTower(nn.Module):
         self.image_processor = LanguageBindVideoProcessor(LanguageBindVideo_model, tokenizer)
         # self.vision_tower = CLIPVisionModel.from_pretrained(self.vision_tower_name, device_map=device_map)
         self.vision_tower = LanguageBindVideo_model.vision_model
-        self.vision_tower.requires_grad_(False)
+        # self.vision_tower.requires_grad_(False)
 
         self.is_loaded = True
 
     def feature_select(self, image_forward_outs):
         image_features = image_forward_outs.hidden_states[self.select_layer]
+        image_features = image_features.reshape(-1, 8, image_features.size(-2), image_features.size(-1))
         if self.select_feature == 'patch':
-            image_features = image_features[:, 1:]
+            image_features = image_features[:, :, 1:, :]
         elif self.select_feature == 'cls_patch':
             image_features = image_features
         else:
             raise ValueError(f'Unexpected select feature: {self.select_feature}')
+        image_features = image_features.reshape(image_features.size(0), -1, image_features.size(-1))
         return image_features
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def forward(self, images):
         if type(images) is list:
             image_features = []
@@ -140,9 +148,10 @@ class LanguageBindVideoTower(nn.Module):
                 image_feature = self.feature_select(image_forward_out).to(image.dtype)
                 image_features.append(image_feature)
         else:
-            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
-            image_features = image_forward_outs.to(images.dtype)
-            # image_features = self.feature_select(image_forward_outs).to(images.dtype)
+            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True, return_dict=True)
+            # image_forward_outs = image_forward_outs.hidden_states
+            # image_features = image_forward_outs.to(images.dtype)
+            image_features = self.feature_select(image_forward_outs).to(images.dtype)
 
         return image_features
 
@@ -201,12 +210,13 @@ class LanguageBindAudioTower(nn.Module):
         tokenizer = LanguageBindAudioTokenizer.from_pretrained(self.vision_tower_name)
         self.image_processor = LanguageBindAudioProcessor(LanguageBindAudio_model, tokenizer)
         self.vision_tower = LanguageBindAudio_model.vision_model
-        self.vision_tower.requires_grad_(False)
+        # self.vision_tower.requires_grad_(False)
 
         self.is_loaded = True
 
     def feature_select(self, image_forward_outs):
         image_features = image_forward_outs.hidden_states[self.select_layer]
+        # print(image_features.shape)
         if self.select_feature == 'patch':
             image_features = image_features[:, 1:]
         elif self.select_feature == 'cls_patch':
@@ -215,7 +225,7 @@ class LanguageBindAudioTower(nn.Module):
             raise ValueError(f'Unexpected select feature: {self.select_feature}')
         return image_features
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def forward(self, images):
         if type(images) is list:
             image_features = []
@@ -224,9 +234,8 @@ class LanguageBindAudioTower(nn.Module):
                 image_feature = self.feature_select(image_forward_out).to(image.dtype)
                 image_features.append(image_feature)
         else:
-            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
-            image_features = image_forward_outs.to(images.dtype)
-            # image_features = self.feature_select(image_forward_outs).to(images.dtype)
+            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True, return_dict=True)
+            image_features = self.feature_select(image_forward_outs).to(images.dtype)
 
         return image_features
 

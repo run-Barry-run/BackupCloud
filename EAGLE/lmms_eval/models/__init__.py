@@ -2,6 +2,7 @@ import os
 
 AVAILABLE_MODELS = {
     "eagle": "Eagle",
+    "onellm": "OneLLM"
 }
 
 for model_name, model_class in AVAILABLE_MODELS.items():
